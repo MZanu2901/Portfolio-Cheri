@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Discover Demak</title>
+    
+    <!-- Tailwind CSS untuk tata letak dan desain -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Leaflet CSS untuk Peta -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    
+    <!-- Google Fonts: Playfair Display (Sejarah/Elegan) & Inter (Keterbacaan) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome untuk Ikon -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'heritage-dark': '#2C1E16',
+                        'heritage-gold': '#B8860B',
+                        'heritage-paper': '#FDFBF7',
+                        'heritage-border': '#D4C4A8',
+                        'heritage-green': '#2D4A22'
+                    },
+                    fontFamily: {
+                        serif: ['"Playfair Display"', 'serif'],
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Pengaturan Scrollbar Kustom untuk Story Map */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #FDFBF7; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #D4C4A8; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #B8860B; 
+        }
+
+        /* Marker Kustom CSS */
+        .custom-div-icon {
+            background: transparent;
+            border: none;
+        }
+        .marker-pin {
+            width: 40px;
+            height: 40px;
+            border-radius: 50% 50% 50% 0;
+            background: #2C1E16;
+            position: absolute;
+            transform: rotate(-45deg);
+            left: 50%;
+            top: 50%;
+            margin: -20px 0 0 -20px;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+            transition: all 0.3s ease;
+        }
+        .marker-pin.utama {
+            background: #B8860B;
+            width: 50px;
+            height: 50px;
+            margin: -25px 0 0 -25px;
+            z-index: 1000 !important;
+        }
+        .marker-pin::after {
+            content: '';
+            width: 30px;
+            height: 30px;
+            margin: 5px 0 0 5px;
+            background: #fff;
+            position: absolute;
+            border-radius: 50%;
+        }
+        .marker-pin.utama::after {
+            width: 38px;
+            height: 38px;
+            margin: 6px 0 0 6px;
+        }
+        .custom-div-icon i {
+            position: absolute;
+            width: 22px;
+            font-size: 18px;
+            left: 0;
+            right: 0;
+            margin: 10px auto;
+            text-align: center;
+            z-index: 10;
+            color: #2C1E16;
+        }
+        .custom-div-icon.utama i {
+            font-size: 22px;
+            margin: 14px auto;
+            color: #B8860B;
+        }
+
+        /* Leaflet Popup Kustom */
+        .leaflet-popup-content-wrapper {
+            background: #FDFBF7;
+            border-radius: 8px;
+            border: 1px solid #D4C4A8;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        .leaflet-popup-tip {
+            background: #FDFBF7;
+            border: 1px solid #D4C4A8;
+        }
+        .leaflet-popup-content {
+            margin: 16px;
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Animasi Transisi Halus */
+        .story-card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+        }
+        .story-card:hover, .story-card.active {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+            border-color: #B8860B;
+        }
+
+        /* Tata letak split screen responsive */
+        html, body { height: 100%; margin: 0; overflow: hidden; }
+        .app-container { display: flex; flex-direction: column; height: 100vh; }
+        @media (min-width: 768px) {
+            .app-container { flex-direction: row; }
+        }
+    </style>
+</head>
+<body class="bg-heritage-paper text-heritage-dark antialiased">
+
+    <div class="app-container">
+        
+        <!-- Panel Kiri: Narasi Story Map -->
+        <div class="w-full md:w-2/5 lg:w-1/3 h-[50vh] md:h-screen overflow-y-auto border-b md:border-b-0 md:border-r border-heritage-border relative z-10 bg-heritage-paper shadow-xl" id="sidebar">
+            
+            <!-- Header Panel -->
+            <div class="p-8 border-b border-heritage-border bg-gradient-to-b from-heritage-paper to-[#f5f1e7]">
+                <h3 class="text-sm font-bold tracking-widest text-heritage-gold uppercase mb-2">MICE PNJ PSDKU 2025</h3>
+                <h1 class="font-serif text-4xl font-bold leading-tight mb-4 text-heritage-dark">Discover Demak</h1>
+                <p class="text-sm leading-relaxed text-gray-700">
+                    Sebuah eksplorasi interaktif menyusuri warisan budaya, sejarah keislaman, hingga pesona alam dan agrowisata di Kabupaten Demak.
+                </p>
+            </div>
+
+            <!-- Kontainer Daftar Destinasi -->
+            <div class="p-6 space-y-6" id="destinations-list">
+                <!-- Konten akan diisi oleh JavaScript -->
+            </div>
+            
+            <div class="p-8 text-center border-t border-heritage-border text-xs text-gray-500">
+                Dikembangkan untuk presentasi kelas. Data dikurasi dengan cermat.
+            </div>
+        </div>
+
+        <!-- Panel Kanan: Peta Interaktif -->
+        <div class="w-full md:w-3/5 lg:w-2/3 h-[50vh] md:h-screen relative" id="map">
+            <!-- Peta dirender di sini -->
+        </div>
+
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    
+    <script>
+        // DATA DESTINASI WISATA DEMAK
+        // Zanu, GANTI TAUTAN GAMBAR DI BAWAH INI (properti 'image') DENGAN TAUTAN LANGSUNG (BERAKHIRAN .JPG ATAU .PNG) DARI FOTOMU JIKA SUDAH ADA.
+        const destinations = [
+            {
+                id: 'masjid-agung',
+                title: "Masjid Agung Demak",
+                type: "Utama",
+                category: "Wisata Religi & Sejarah",
+                lat: -6.8947,
+                lng: 110.6373,
+                description: "Pusat penyebaran agama Islam di Pulau Jawa. Didirikan oleh Raden Patah bersama Walisongo pada abad ke-15. Masjid ini memiliki arsitektur khas Nusantara dengan atap tajuk tumpang tiga yang sarat akan makna filosofis.",
+                icon: "fa-mosque",
+                image: "Masjid Agung Demak.jpg",
+                link: "https://photos.app.goo.gl/nTmLXnz9Yzoyt47PA"
+            },
+            {
+                id: 'wisma-notobratan',
+                title: "Wisma Notobratan",
+                type: "Penunjang",
+                category: "Cagar Budaya",
+                lat: -6.899846,
+                lng: 110.649023,
+                description: "Bangunan bersejarah peninggalan masa kolonial yang memadukan arsitektur Eropa dan lokal. Menjadi saksi bisu perkembangan tata kota dan kehidupan sosial masyarakat Demak di masa lampau.",
+                icon: "fa-landmark",
+                image: "Wisma Notobratan.jpg",
+                link: "https://photos.app.goo.gl/xEjNpwxpKKifr1Lc6"
+            },
+            {
+                id: 'harmoni-farm',
+                title: "Harmoni Jaya Farm",
+                type: "Penunjang",
+                category: "Agrowisata",
+                lat: -6.887080,
+                lng: 110.653513,
+                description: "Kawasan peternakan dan agrowisata edukatif. Menawarkan pengalaman langsung berinteraksi dengan hewan ternak, memahami proses budidaya, dan menikmati suasana pedesaan yang asri.",
+                icon: "fa-cow",
+                image: "Harmoni Jaya Farm.jpg",
+                link: "https://photos.app.goo.gl/8HGtnh74ScAXRFev7"
+            },
+            {
+                id: 'pantai-istambul',
+                title: "Pantai Istambul",
+                type: "Penunjang",
+                category: "Wisata Bahari",
+                lat: -6.854030,
+                lng: 110.518544,
+                description: "Dikenal juga sebagai Pantai Glagah Wangi (Istana Tambakbulusan). Memiliki pemandangan hutan mangrove yang eksotis, trek kayu pejalan kaki, dan pesona pesisir utara Jawa yang memukau.",
+                icon: "fa-umbrella-beach",
+                image: "Pantai Istambul.jpg",
+                link: "https://photos.app.goo.gl/97cEnio3NG8Va1GS7"
+            },
+            {
+                id: 'green-garden',
+                title: "Demak Green Garden",
+                type: "Penunjang",
+                category: "Rekreasi Keluarga",
+                lat: -6.804455,
+                lng: 110.739972,
+                description: "Kawasan taman rekreasi modern terbesar di Demak. Dilengkapi dengan berbagai wahana air, spot foto tematik, dan fasilitas keluarga yang terintegrasi dengan penataan lansekap hijau.",
+                icon: "fa-leaf",
+                image: "Demak Green Garden.jpg",
+                link: "https://photos.app.goo.gl/SxQyzzHVCE7vUcWr7"
+            },
+            {
+                id: 'desa-pilangwetan',
+                title: "Desa Pilangwetan",
+                type: "Penunjang",
+                category: "Desa Wisata",
+                lat: -7.048284,
+                lng: 110.673830,
+                description: "Desa wisata yang menonjolkan kearifan lokal, kerajinan tangan, dan kehidupan otentik masyarakat agraris Demak. Tempat yang tepat untuk mempelajari kebudayaan hidup berdampingan dengan alam.",
+                icon: "fa-seedling",
+                image: "Desa Pilangwetan.jpg",
+                link: "https://photos.app.goo.gl/8LndwyGzp5z3S5217"
+            }
+        ];
+
+        // INISIALISASI PETA
+        // Menggunakan gaya peta yang bersih (Positron) agar elemen sejarah menonjol
+        const map = L.map('map', {
+            zoomControl: false // Kita akan atur posisi zoom control agar tidak tertutup elemen mobile
+        }).setView([-6.8947, 110.6373], 11);
+
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+            subdomains: 'abcd',
+            maxZoom: 19
+        }).addTo(map);
+
+        L.control.zoom({
+            position: 'bottomright'
+        }).addTo(map);
+
+        const markers = {};
+
+        // RENDER KARTU DESTINASI DAN MARKER PETA
+        const destinationsList = document.getElementById('destinations-list');
+
+        destinations.forEach((dest, index) => {
+            // 1. Buat Marker Peta
+            const isUtama = dest.type === 'Utama';
+            const iconClass = isUtama ? 'utama' : '';
+            
+            const customIcon = L.divIcon({
+                className: `custom-div-icon ${iconClass}`,
+                html: `<div class='marker-pin ${iconClass}'></div><i class='fas ${dest.icon}'></i>`,
+                iconSize: [30, 42],
+                iconAnchor: [15, 42]
+            });
+
+            const marker = L.marker([dest.lat, dest.lng], {icon: customIcon}).addTo(map);
+            markers[dest.id] = marker;
+
+            // Konten Popup Peta
+            const popupContent = `
+                <div class="p-1 min-w-[200px]">
+                    <h3 class="font-serif font-bold text-lg text-heritage-dark leading-tight">${dest.title}</h3>
+                    <p class="text-xs text-heritage-gold font-bold mb-2 tracking-wide uppercase mt-1">${dest.category}</p>
+                    <div class="w-full h-24 mb-2 overflow-hidden rounded bg-gray-200">
+                        <img src="${dest.image}" class="w-full h-full object-cover" alt="${dest.title}">
+                    </div>
+                    <a href="${dest.link}" target="_blank" rel="noopener noreferrer" class="block text-center w-full mt-2 bg-heritage-dark text-white text-xs py-2 rounded hover:bg-heritage-gold transition-colors">
+                        Lihat Dokumentasi
+                    </a>
+                </div>
+            `;
+            marker.bindPopup(popupContent);
+
+            // Aksi klik marker
+            marker.on('click', () => {
+                map.setView([dest.lat, dest.lng], 15, { animate: true, duration: 1 });
+                highlightCard(dest.id);
+            });
+
+            // 2. Buat Kartu Story Map di Panel Kiri
+            const cardHTML = `
+                <div id="card-${dest.id}" class="story-card bg-white border border-gray-200 rounded-xl overflow-hidden cursor-pointer group" onclick="focusOnMap('${dest.id}')">
+                    <div class="h-48 overflow-hidden relative">
+                        ${isUtama ? `<div class="absolute top-3 right-3 bg-heritage-gold text-white text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider z-10 shadow-md"><i class="fas fa-star mr-1"></i> Destinasi Utama</div>` : ''}
+                        <img src="${dest.image}" alt="${dest.title}" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
+                        <h2 class="absolute bottom-4 left-4 right-4 text-white font-serif text-2xl font-bold leading-tight group-hover:text-heritage-gold transition-colors">${dest.title}</h2>
+                    </div>
+                    <div class="p-5">
+                        <div class="flex items-center text-xs text-gray-500 mb-3 font-medium tracking-wide uppercase">
+                            <i class="fas ${dest.icon} mr-2 text-heritage-gold"></i> ${dest.category}
+                        </div>
+                        <p class="text-gray-600 text-sm leading-relaxed mb-4 line-clamp-3">
+                            ${dest.description}
+                        </p>
+                        <a href="${dest.link}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation();" class="text-sm font-semibold text-heritage-dark border-b border-heritage-gold pb-0.5 hover:text-heritage-gold transition-colors inline-flex items-center">
+                            Akses Media Dokumentasi <i class="fas fa-arrow-right ml-2 text-[10px]"></i>
+                        </a>
+                    </div>
+                </div>
+            `;
+            destinationsList.insertAdjacentHTML('beforeend', cardHTML);
+        });
+
+        // FUNGSI INTERAKTIF
+        
+        // Memusatkan peta dari klik kartu
+        function focusOnMap(id) {
+            const dest = destinations.find(d => d.id === id);
+            const marker = markers[id];
+            
+            // Zoom dan pan ke lokasi
+            map.setView([dest.lat, dest.lng], 15, { animate: true, duration: 1 });
+            
+            // Buka popup
+            setTimeout(() => {
+                marker.openPopup();
+            }, 500); // Jeda sedikit agar animasi pan selesai
+            
+            highlightCard(id);
+
+            // Jika di perangkat seluler, gulir otomatis ke peta setelah klik
+            if(window.innerWidth < 768) {
+                document.getElementById('map').scrollIntoView({behavior: 'smooth'});
+            }
+        }
+
+        // Memberikan efek penyorotan pada kartu yang aktif
+        function highlightCard(id) {
+            document.querySelectorAll('.story-card').forEach(card => {
+                card.classList.remove('border-heritage-gold', 'ring-2', 'ring-heritage-gold/30', 'bg-[#fcfbf9]');
+            });
+            const activeCard = document.getElementById(`card-${id}`);
+            activeCard.classList.add('border-heritage-gold', 'ring-2', 'ring-heritage-gold/30', 'bg-[#fcfbf9]');
+            
+            // Gulir sidebar ke kartu yang aktif jika layar besar
+            if(window.innerWidth >= 768) {
+                activeCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+
+        // Paskan batas peta pada saat pertama dimuat agar semua marker terlihat
+        const group = new L.featureGroup(Object.values(markers));
+        map.fitBounds(group.getBounds(), {padding: [50, 50]});
+
+    </script>
+</body>
+</html>
